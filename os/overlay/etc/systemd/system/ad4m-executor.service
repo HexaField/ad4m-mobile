@@ -1,0 +1,16 @@
+[Unit]
+Description=AD4M Executor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ad4m-executor --config /etc/ad4m/config.toml
+Restart=always
+RestartSec=5
+MemoryMax=3G
+User=ad4m
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target

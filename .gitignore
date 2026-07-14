@@ -1,0 +1,6 @@
+*.img
+*.qcow2
+node_modules/
+dist/
+target/
+.pmbootstrap/
