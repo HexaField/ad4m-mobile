@@ -109,6 +109,9 @@ sshpass -p ad4m ssh -p 2222 user@localhost
 - **No KVM on josh machine.** User `josh` isn't in the `kvm` group. QEMU runs in software emulation (slower but works).
 - **File ownership.** Injected files end up as root; must `chown -R user:user /home/user/.ad4m` before executor can start.
 - **Image vs chroot.** `pmbootstrap install` creates both a rootfs chroot and a disk image. They're separate — inject into the **image** (use `inject-into-image.sh`), not the chroot.
+- **Auto-init passphrase.** The systemd unit passes `--auto-init-passphrase ad4m`. First boot: creates agent keys. Subsequent boots: auto-unlocks the wallet. No manual setup needed.
+- **pmOS user UID is 10000**, not 1000. The inject script uses `chown -R 10000:10000`.
+- **admin_credential is unset** (None). Empty WebSocket tokens get ALL_CAPABILITY. Safe for localhost-only single-user mobile build.
 - **Dapp server.** The executor extracts its built-in dapp to `~/.ad4m/dapp/`. We pre-populate this with WE dist so the Rocket server on :8080 serves WE.
 
 ## Current Status
@@ -119,6 +122,9 @@ sshpass -p ad4m ssh -p 2222 user@localhost
 - [x] WebView wrapper (Python GTK4 + WebKitGTK 6.0)
 - [x] PostmarketOS QEMU image boots with Phosh
 - [x] Executor runs as systemd service, API on :12000, dapp on :8080
-- [ ] WE actually connects to executor (needs init/agent setup)
+- [x] Agent auto-init + auto-unlock on boot (--auto-init-passphrase)
+- [x] WebSocket API verified (agent.status, perspectives.all, runtime.info)
+- [x] ad4m-connect auth flow compatible (no token needed, admin_credential unset)
+- [ ] WE UI rendering verified in browser (needs QEMU port forwarding for :8080)
 - [ ] aarch64 cross-compile for Fairphone 5
 - [ ] Local-store language bundled and loaded by executor
