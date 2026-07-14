@@ -12,7 +12,7 @@ CHROOT="/home/josh/.local/var/pmbootstrap/chroot_rootfs_qemu-amd64"
 MNT="/tmp/pmos-root"
 
 # Verify prerequisites
-for f in "${AD4M_DIR}/target/release/ad4m" "${WE_DIR}/apps/we-web/dist/index.html"; do
+for f in "${AD4M_DIR}/target/release/ad4m-executor" "${WE_DIR}/apps/we-web/dist/index.html"; do
     [ -f "$f" ] || { echo "ERROR: $f not found"; exit 1; }
 done
 
@@ -24,8 +24,8 @@ sudo mount "${LOOP}p2" "$MNT"
 trap 'sudo umount $MNT 2>/dev/null; sudo losetup -d $LOOP 2>/dev/null' EXIT
 
 echo "[1/6] AD4M executor binary..."
-sudo cp "${AD4M_DIR}/target/release/ad4m" "${MNT}/usr/bin/ad4m"
-sudo chmod 755 "${MNT}/usr/bin/ad4m"
+sudo cp "${AD4M_DIR}/target/release/ad4m-executor" "${MNT}/usr/bin/ad4m-executor"
+sudo chmod 755 "${MNT}/usr/bin/ad4m-executor"
 
 echo "[2/6] WE dist → dapp directory..."
 sudo mkdir -p "${MNT}/home/user/.ad4m/dapp"

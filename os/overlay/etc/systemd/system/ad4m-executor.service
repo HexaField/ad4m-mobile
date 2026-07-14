@@ -4,13 +4,14 @@ After=graphical.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ad4m run --connect-holochain false --run-dapp-server true --port 12000
+ExecStart=/usr/bin/ad4m-executor run --run-dapp-server true --port 12000
 Restart=always
 RestartSec=5
 MemoryMax=3G
 User=user
 Environment=RUST_LOG=info
 Environment=HOME=/home/user
+Environment=LD_PRELOAD=/usr/lib/libglibc_stubs.so
 
 [Install]
 WantedBy=multi-user.target
