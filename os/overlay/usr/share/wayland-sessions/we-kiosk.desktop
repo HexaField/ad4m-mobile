@@ -1,5 +1,0 @@
-[Desktop Entry]
-Name=WE
-Comment=AD4M WE Interface
-Exec=/usr/libexec/we-session.sh
-Type=Application

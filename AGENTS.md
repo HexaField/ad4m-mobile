@@ -17,9 +17,10 @@ Key decisions:
 │              (Alpine, systemd)                   │
 │                                                  │
 │  ┌────────────────────────────────────────────┐  │
-│  │         cage (kiosk compositor)            │  │
+│  │         Phosh (phone shell)                │  │
+│  │   lock screen · notifications · settings   │  │
 │  │  ┌──────────────────────────────────────┐  │  │
-│  │  │   Chromium (kiosk, --app=localhost)  │  │  │
+│  │  │   WebView (WebKitGTK / wry / TBD)   │  │  │
 │  │  │  ┌────────────────────────────────┐  │  │  │
 │  │  │  │         WE (SolidJS)           │  │  │  │
 │  │  │  │   ad4m-connect → WS :12000     │  │  │  │
@@ -43,7 +44,6 @@ Key decisions:
 │  │  (local only — no P2P transport)           │  │
 │  └────────────────────────────────────────────┘  │
 │                                                  │
-│  squeekboard (on-screen keyboard)                │
 │  NetworkManager · avahi (mDNS)                   │
 └──────────────────────────────────────────────────┘
 ```

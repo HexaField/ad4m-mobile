@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=WE
+Comment=AD4M WE Interface
+Exec=we-webview http://localhost:12000/we
+Type=Application
+X-GNOME-Autostart-enabled=true

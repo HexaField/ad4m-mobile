@@ -14,7 +14,7 @@ Build a phone OS image (PostmarketOS) that boots into AD4M + WE as a persistent 
 ## Constraints
 
 - Fairphone 5: QCM6490 (aarch64), 8GB RAM, ~128GB storage
-- Battery: AD4M must be resource-conscious — lazy language loading, configurable P2P participation
+- Battery: AD4M must be resource-conscious
 - Offline-first: must work without internet, syncing when connectivity returns
 
 ---
@@ -110,35 +110,19 @@ No P2P transport. No libp2p, no Kitsune, no gossipsub. The executor runs as a **
 
 Remove `neighbourhoods.rs` networking paths entirely (not just Holochain — all of them). Keep the neighbourhood data model for local use.
 
-### 2.5 Lazy language loading
-
-Current behaviour: all installed languages load at startup.
-Phone behaviour: languages load on first access, unload after idle timeout.
-
-Add lifecycle to `LanguageController`:
-- `load(address)` — spin up Deno worker thread
-- `suspend(address)` — pause worker, keep state
-- `unload(address)` — tear down worker, free memory
-- Configurable idle timeout (default: 5 min)
-
 ---
 
 ## Phase 3: WE as Phone Shell
 
-WE is a SolidJS SPA with Lit web components. It connects to AD4M via `@coasys/ad4m-connect` over WebSocket. To make it the phone UI:
+WE is a SolidJS SPA with Lit web components. It connects to AD4M via `@coasys/ad4m-connect` over WebSocket.
 
-### 3.1 Kiosk compositor
+### 3.1 Phosh + WE app
 
-Use **cage** (minimal Wayland kiosk compositor from wlroots) to run a single full-screen application. No window management, no taskbar — just WE.
-
-```
-cage -- chromium --kiosk --app=http://localhost:5173
-```
-
-cage handles:
-- Full-screen display
-- Touch input routing
-- On-screen keyboard integration (via squeekboard, spawned separately or via input-method protocol)
+Run Phosh as the compositor and auto-launch WE as a maximised WebView app:
+- Lock screen, notifications, quick settings for free (Phosh provides these)
+- WE runs as a "launcher" app — always visible, always maximised
+- Other apps (terminal, settings) accessible via Phosh's app drawer
+- On-screen keyboard (squeekboard) handled by Phosh natively
 
 ### 3.2 WE mobile adaptations
 
@@ -148,24 +132,14 @@ WE's design system (7-layer: tokens → themes → elements → components → w
 - **Touch**: all interactions must be touch-friendly (48px min tap targets)
 - **Navigation**: bottom nav bar pattern (tab-based, not sidebar)
 - **On-screen keyboard**: layout must reflow when squeekboard appears
-- **Status bar**: battery, signal, time — either via a WE component reading system APIs, or a thin native status bar overlay
 
 ### 3.3 System integration
 
 WE needs to surface phone-level functions:
-- **Notifications**: AD4M signals → system notifications (via libnotify / D-Bus)
-- **Connectivity status**: NetworkManager D-Bus → WE indicator
-- **Battery**: UPower D-Bus → WE indicator
-- **Settings**: WiFi, Bluetooth, volume — either via WE pages calling system D-Bus, or Phosh's quick-settings panel as a separate layer
-
-### 3.4 Alternative: Phosh + WE app
-
-Instead of replacing the phone shell entirely, run Phosh as the compositor and auto-launch WE as a maximised GTK WebView app. This gives you:
-- Lock screen, notifications, quick settings for free (Phosh provides these)
-- WE runs as a "launcher" app — always visible, always maximised
-- Other apps (terminal, settings) accessible via Phosh's app drawer
-
-Trade-off: less "bespoke" feel, more polish out of the box. Recommend starting here and graduating to cage-only once WE handles all system functions.
+- **Notifications**: AD4M signals → system notifications (via libnotify / D-Bus → Phosh notification tray)
+- **Connectivity status**: NetworkManager D-Bus → WE indicator (or rely on Phosh's status bar)
+- **Battery**: UPower D-Bus → WE indicator (or rely on Phosh's status bar)
+- **Settings**: WiFi, Bluetooth, volume — Phosh's quick-settings panel handles these
 
 ---
 
@@ -203,28 +177,24 @@ User=ad4m
 WantedBy=multi-user.target
 ```
 
-### 4.3 WE kiosk session
+### 4.3 WE autostart (Phosh session)
 
 ```ini
-# /usr/share/wayland-sessions/we-kiosk.desktop
+# ~/.config/autostart/we.desktop (or /etc/xdg/autostart/)
 [Desktop Entry]
 Name=WE
-Exec=/usr/libexec/we-session.sh
+Exec=we-webview http://localhost:12000/we
 Type=Application
+X-GNOME-Autostart-enabled=true
 ```
 
-```bash
-#!/bin/sh
-# /usr/libexec/we-session.sh
-squeekboard &
-exec cage -- chromium --kiosk --app=http://localhost:12000/we
-```
+The `we-webview` binary is a lightweight GTK4 WebView app (or WebKitGTK wrapper) that loads WE maximised. Investigate WebKitGTK vs Chromium — see Open Questions.
 
 ### 4.4 Custom image build
 
 ```bash
-pmbootstrap init                    # device: fairphone-fp5, UI: none (custom session)
-pmbootstrap install --add ad4m-executor,we-shell,cage,chromium,squeekboard
+pmbootstrap init                    # device: fairphone-fp5, UI: phosh
+pmbootstrap install --add ad4m-executor,we-webview
 pmbootstrap export                  # → .img file for flashing
 ```
 
@@ -235,16 +205,15 @@ pmbootstrap export                  # → .img file for flashing
 1. Flash PostmarketOS via `pmbootstrap flasher flash_rootfs`
 2. Verify boot, touch, WiFi, cellular, Bluetooth
 3. Install AD4M executor package, verify it runs as systemd service
-4. Install WE kiosk session, verify it launches and connects to executor
-5. Test neighbourhood creation, language loading, P2P sync over WiFi
-6. Battery profiling — measure idle drain with AD4M running
+4. Launch WE via Phosh, verify it connects to executor
+5. Test neighbourhood creation, language loading with local-store language
+6. Test mic/webcam access via WE (getUserMedia)
+7. Battery profiling — measure idle drain with AD4M running
 
 ---
 
 ## Open Questions
 
-1. **Chromium vs WebView**: Chromium in kiosk mode works but is heavy. A purpose-built WebView (servo? wry/tauri-without-tauri?) could be lighter. Investigate once baseline works.
-2. **Cellular data**: does libp2p QUIC work over cellular NAT? Need relay/TURN.
-3. **Push wakeup**: when the phone sleeps, how does the AD4M node wake for incoming messages? systemd inhibit locks? Wakelocks via kernel interface?
-4. **Phone calls / SMS**: out of scope for v1, but eventually — ofono integration? ModemManager?
-5. **Camera / sensors**: WE could access via Web APIs (getUserMedia etc.) through the browser — but Chromium on pmOS may need V4L2 integration.
+1. **WebView vs Chromium**: Chromium in kiosk mode works but is heavy (~500MB RAM). Investigate lighter alternatives: WebKitGTK (native to GNOME/Phosh ecosystem, good GTK integration), wry (Tauri's WebView layer without Tauri), or servo. WebKitGTK is the most natural fit for Phosh.
+2. **Push wakeup**: when the phone sleeps, how does the AD4M node wake for incoming messages? systemd inhibit locks? Wakelocks via kernel interface? Investigate what Phosh/gnome-session does for idle/suspend policy.
+3. **Mic / webcam access**: WE needs camera and microphone via Web APIs (`getUserMedia`). Investigate whether WebKitGTK (or chosen WebView) on PostmarketOS supports PipeWire/V4L2 media capture. Fairphone 5 camera support status in pmOS kernel needs checking.
