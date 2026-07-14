@@ -1,16 +1,16 @@
 [Unit]
-Description=AD4M Executor
-After=network-online.target
-Wants=network-online.target
+Description=AD4M Executor (Local-Only Mobile Build)
+After=graphical.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ad4m-executor --config /etc/ad4m/config.toml
+ExecStart=/usr/bin/ad4m run --connect-holochain false --run-dapp-server true --port 12000
 Restart=always
 RestartSec=5
 MemoryMax=3G
-User=ad4m
+User=user
 Environment=RUST_LOG=info
+Environment=HOME=/home/user
 
 [Install]
 WantedBy=multi-user.target

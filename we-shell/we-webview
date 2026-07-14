@@ -1,31 +1,42 @@
 #!/usr/bin/env python3
 """
-WE WebView — lightweight GTK4 + WebKitGTK wrapper for displaying WE
-as a maximised app in Phosh. Designed for AD4M Mobile.
-
-Usage: we-webview [URL]
-Default URL: http://localhost:12000/we
+WE WebView — GTK4 + WebKitGTK wrapper for WE in Phosh.
+Waits for the AD4M executor to be ready before loading.
 """
 
 import sys
+import time
+import urllib.request
 import gi
 
-gi.require_version("Gtk", "4.0")
-gi.require_version("WebKit", "6.0")
-from gi.repository import Gtk, WebKit, Gdk, GLib
+gi.require_version('Gtk', '4.0')
+gi.require_version('WebKit', '6.0')
+from gi.repository import Gtk, WebKit, GLib
 
 
-DEFAULT_URL = "http://localhost:12000/we"
+DEFAULT_URL = 'http://localhost:8080'
+EXECUTOR_URL = 'http://localhost:12000'
+MAX_WAIT = 60
+
+
+def wait_for_executor():
+    for i in range(MAX_WAIT):
+        try:
+            urllib.request.urlopen(EXECUTOR_URL, timeout=1)
+            return True
+        except Exception:
+            time.sleep(1)
+    return False
 
 
 class WeWebView(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id="org.ad4m.we")
+        super().__init__(application_id='org.ad4m.we')
         self.url = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_URL
 
     def do_activate(self):
         win = Gtk.ApplicationWindow(application=self)
-        win.set_title("WE")
+        win.set_title('WE')
         win.set_default_size(390, 844)
 
         settings = WebKit.Settings()
@@ -34,34 +45,41 @@ class WeWebView(Gtk.Application):
         settings.set_enable_mediasource(True)
         settings.set_enable_webrtc(True)
         settings.set_media_playback_requires_user_gesture(False)
-        settings.set_user_agent_with_application_details("WE", "0.1.0")
+        settings.set_user_agent_with_application_details('WE', '0.1.0')
 
         web_view = WebKit.WebView()
         web_view.set_settings(settings)
+        web_view.connect('decide-policy', self._on_decide_policy)
 
-        web_view.connect("decide-policy", self._on_decide_policy)
-
-        web_view.load_uri(self.url)
+        if not wait_for_executor():
+            web_view.load_html(
+                '<html><body style="background:#111;color:#fff;font-family:sans-serif;'
+                'display:flex;align-items:center;justify-content:center;height:100vh">'
+                '<h2>Waiting for AD4M executor...</h2></body></html>',
+                None
+            )
+            GLib.timeout_add_seconds(5, lambda: web_view.load_uri(self.url) or False)
+        else:
+            web_view.load_uri(self.url)
 
         win.set_child(web_view)
+        win.maximize()
         win.present()
 
     def _on_decide_policy(self, web_view, decision, decision_type):
         if decision_type == WebKit.PolicyDecisionType.RESPONSE:
             return False
-
         if decision_type == WebKit.PolicyDecisionType.NAVIGATION_ACTION:
             nav = decision.get_navigation_action()
             request = nav.get_request()
             uri = request.get_uri()
-            if uri and not uri.startswith(("http://localhost", "http://127.0.0.1", "about:")):
+            if uri and not uri.startswith(('http://localhost', 'http://127.0.0.1', 'about:')):
                 decision.ignore()
-                GLib.spawn_command_line_async(f"xdg-open {uri}")
+                GLib.spawn_command_line_async(f'xdg-open {uri}')
                 return True
-
         return False
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app = WeWebView()
     app.run(None)
