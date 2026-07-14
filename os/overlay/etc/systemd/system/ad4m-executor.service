@@ -4,7 +4,7 @@ After=graphical.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ad4m-executor run --run-dapp-server true --port 12000
+ExecStart=/usr/bin/ad4m-executor run --run-dapp-server true --port 12000 --auto-init-passphrase ad4m
 Restart=always
 RestartSec=5
 MemoryMax=3G
