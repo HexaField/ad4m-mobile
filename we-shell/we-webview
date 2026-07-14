@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""
+WE WebView — lightweight GTK4 + WebKitGTK wrapper for displaying WE
+as a maximised app in Phosh. Designed for AD4M Mobile.
+
+Usage: we-webview [URL]
+Default URL: http://localhost:12000/we
+"""
+
+import sys
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("WebKit", "6.0")
+from gi.repository import Gtk, WebKit, Gdk, GLib
+
+
+DEFAULT_URL = "http://localhost:12000/we"
+
+
+class WeWebView(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id="org.ad4m.we")
+        self.url = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_URL
+
+    def do_activate(self):
+        win = Gtk.ApplicationWindow(application=self)
+        win.set_title("WE")
+        win.set_default_size(390, 844)
+
+        settings = WebKit.Settings()
+        settings.set_enable_developer_extras(True)
+        settings.set_enable_media_stream(True)
+        settings.set_enable_mediasource(True)
+        settings.set_enable_webrtc(True)
+        settings.set_media_playback_requires_user_gesture(False)
+        settings.set_user_agent_with_application_details("WE", "0.1.0")
+
+        web_view = WebKit.WebView()
+        web_view.set_settings(settings)
+
+        web_view.connect("decide-policy", self._on_decide_policy)
+
+        web_view.load_uri(self.url)
+
+        win.set_child(web_view)
+        win.present()
+
+    def _on_decide_policy(self, web_view, decision, decision_type):
+        if decision_type == WebKit.PolicyDecisionType.RESPONSE:
+            return False
+
+        if decision_type == WebKit.PolicyDecisionType.NAVIGATION_ACTION:
+            nav = decision.get_navigation_action()
+            request = nav.get_request()
+            uri = request.get_uri()
+            if uri and not uri.startswith(("http://localhost", "http://127.0.0.1", "about:")):
+                decision.ignore()
+                GLib.spawn_command_line_async(f"xdg-open {uri}")
+                return True
+
+        return False
+
+
+if __name__ == "__main__":
+    app = WeWebView()
+    app.run(None)

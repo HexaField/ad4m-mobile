@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=WE
+Comment=AD4M WE Interface
+Exec=we-webview
+Icon=applications-internet
+Type=Application
+Categories=Network;WebBrowser;
+Keywords=ad4m;web;agent;
+StartupNotify=true
