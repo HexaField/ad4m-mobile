@@ -5,7 +5,7 @@
 A mobile Linux phone OS that runs AD4M as a persistent system service with WE as the full-screen UI shell. Target hardware: Fairphone 5 (QCM6490, aarch64, 8GB RAM). Base OS: PostmarketOS.
 
 Key decisions:
-- **AD4M fork** strips Holochain and scryer-prolog — languages are fully pluggable, P2P substrate is swappable
+- **AD4M fork** strips Holochain, scryer-prolog, and all networked languages — local-only agent runtime, networking added later
 - **WE** (SolidJS + Lit web components) runs as the phone UI via a kiosk-mode Wayland compositor
 - **PostmarketOS** provides real Linux (systemd, full networking, no Android process-killing)
 
@@ -35,13 +35,12 @@ Key decisions:
 │  │  │ (Deno V8) │  │  (Deno V8)  │             │  │
 │  │  └──────────┘  └────────────┘              │  │
 │  │                                            │  │
-│  │  ┌──────────┐  ┌────────────┐              │  │
-│  │  │  libp2p  │  │  Oxigraph  │              │  │
-│  │  │  (QUIC+  │  │  (RDF/     │              │  │
-│  │  │  gossip) │  │  SPARQL)   │              │  │
-│  │  └──────────┘  └────────────┘              │  │
+│  │  ┌──────────────────────────┐              │  │
+│  │  │  Oxigraph (RDF/SPARQL)  │              │  │
+│  │  └──────────────────────────┘              │  │
 │  │                                            │  │
 │  │  SQLite · WebSocket RPC :12000             │  │
+│  │  (local only — no P2P transport)           │  │
 │  └────────────────────────────────────────────┘  │
 │                                                  │
 │  squeekboard (on-screen keyboard)                │

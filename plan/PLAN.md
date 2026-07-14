@@ -104,16 +104,11 @@ The goal is not to rewrite neighbourhood sync yet — just make the executor com
 | `webbrowser` | Open browser | Remove (we ARE the browser) |
 | `billing.rs`, `email_service.rs`, `user_management.rs` | Cloud/SaaS features | Remove |
 
-### 2.4 Add lightweight P2P default
+### 2.4 No networked languages (for now)
 
-Replace Holochain's Kitsune2 as the default neighbourhood transport:
+No P2P transport. No libp2p, no Kitsune, no gossipsub. The executor runs as a **local-only agent runtime** — perspectives, languages, and the semantic layer all work, but neighbourhood sync is stubbed out. Networked languages can be added later when there's a reason; the language system is already pluggable so this is just "don't ship any networked ones yet."
 
-- **libp2p** with QUIC transport for peer connections
-- **gossipsub** for neighbourhood message propagation
-- **mDNS** for local peer discovery (avahi on pmOS)
-- **Rendezvous** or relay for NAT traversal
-
-This is a trait — `NeighbourhoodTransport` — so Holochain can be re-added as a language-provided transport later. The default libp2p transport handles the common case.
+Remove `neighbourhoods.rs` networking paths entirely (not just Holochain — all of them). Keep the neighbourhood data model for local use.
 
 ### 2.5 Lazy language loading
 
