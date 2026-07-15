@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 WE WebView — GTK4 + WebKitGTK wrapper for WE in Phosh.
-Waits for the AD4M executor to be ready before loading.
+Loads WE directly and injects JavaScript to auto-connect
+to the local AD4M executor without user interaction.
 """
 
 import sys
@@ -9,20 +10,37 @@ import time
 import urllib.request
 import gi
 
-gi.require_version('Gtk', '4.0')
-gi.require_version('WebKit', '6.0')
+gi.require_version("Gtk", "4.0")
+gi.require_version("WebKit", "6.0")
 from gi.repository import Gtk, WebKit, GLib
 
 
-DEFAULT_URL = 'http://localhost:8080'
-EXECUTOR_URL = 'http://localhost:12000'
+DAPP_URL = "http://localhost:8080"
+EXECUTOR_URL = "http://localhost:12000"
+EXECUTOR_PORT = 12000
 MAX_WAIT = 60
+
+AUTO_CONNECT_JS = """
+(function autoConnect() {
+    var el = document.querySelector('ad4m-connect');
+    if (!el || !el.core) {
+        setTimeout(autoConnect, 500);
+        return;
+    }
+    if (el.core.authState === 'authenticated') {
+        return;
+    }
+    el.core.port = %d;
+    el.core.url = 'http://localhost:%d';
+    el.connectLocalNode();
+})();
+""" % (EXECUTOR_PORT, EXECUTOR_PORT)
 
 
 def wait_for_executor():
     for i in range(MAX_WAIT):
         try:
-            urllib.request.urlopen(EXECUTOR_URL, timeout=1)
+            urllib.request.urlopen(EXECUTOR_URL + "/health", timeout=1)
             return True
         except Exception:
             time.sleep(1)
@@ -31,12 +49,12 @@ def wait_for_executor():
 
 class WeWebView(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id='org.ad4m.we')
-        self.url = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_URL
+        super().__init__(application_id="org.ad4m.we")
+        self._injected = False
 
     def do_activate(self):
         win = Gtk.ApplicationWindow(application=self)
-        win.set_title('WE')
+        win.set_title("WE")
         win.set_default_size(390, 844)
 
         settings = WebKit.Settings()
@@ -45,26 +63,48 @@ class WeWebView(Gtk.Application):
         settings.set_enable_mediasource(True)
         settings.set_enable_webrtc(True)
         settings.set_media_playback_requires_user_gesture(False)
-        settings.set_user_agent_with_application_details('WE', '0.1.0')
+        settings.set_user_agent_with_application_details("WE", "0.1.0")
 
         web_view = WebKit.WebView()
         web_view.set_settings(settings)
-        web_view.connect('decide-policy', self._on_decide_policy)
+        web_view.connect("load-changed", self._on_load_changed)
+        web_view.connect("decide-policy", self._on_decide_policy)
 
         if not wait_for_executor():
             web_view.load_html(
-                '<html><body style="background:#111;color:#fff;font-family:sans-serif;'
-                'display:flex;align-items:center;justify-content:center;height:100vh">'
-                '<h2>Waiting for AD4M executor...</h2></body></html>',
-                None
+                "<html><body style=\"background:#111;color:#fff;font-family:sans-serif;"
+                "display:flex;align-items:center;justify-content:center;height:100vh\">"
+                "<h2>Waiting for AD4M executor...</h2></body></html>",
+                None,
             )
-            GLib.timeout_add_seconds(5, lambda: web_view.load_uri(self.url) or False)
+            GLib.timeout_add_seconds(5, lambda: self._retry_load(web_view) or False)
         else:
-            web_view.load_uri(self.url)
+            web_view.load_uri(DAPP_URL)
 
         win.set_child(web_view)
         win.maximize()
         win.present()
+
+    def _retry_load(self, web_view):
+        try:
+            urllib.request.urlopen(EXECUTOR_URL + "/health", timeout=1)
+            web_view.load_uri(DAPP_URL)
+        except Exception:
+            GLib.timeout_add_seconds(5, lambda: self._retry_load(web_view) or False)
+
+    def _on_load_changed(self, web_view, event):
+        if event == WebKit.LoadEvent.FINISHED and not self._injected:
+            uri = web_view.get_uri() or ""
+            if uri.startswith(DAPP_URL):
+                self._injected = True
+                GLib.timeout_add(2000, self._inject_auto_connect, web_view)
+
+    def _inject_auto_connect(self, web_view):
+        web_view.evaluate_javascript(
+            AUTO_CONNECT_JS, len(AUTO_CONNECT_JS.encode()),
+            None, None, None, None, None,
+        )
+        return False
 
     def _on_decide_policy(self, web_view, decision, decision_type):
         if decision_type == WebKit.PolicyDecisionType.RESPONSE:
@@ -73,13 +113,15 @@ class WeWebView(Gtk.Application):
             nav = decision.get_navigation_action()
             request = nav.get_request()
             uri = request.get_uri()
-            if uri and not uri.startswith(('http://localhost', 'http://127.0.0.1', 'about:')):
+            if uri and not uri.startswith(
+                ("http://localhost", "http://127.0.0.1", "about:")
+            ):
                 decision.ignore()
-                GLib.spawn_command_line_async(f'xdg-open {uri}')
+                GLib.spawn_command_line_async("xdg-open " + uri)
                 return True
         return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = WeWebView()
     app.run(None)
