@@ -57,7 +57,7 @@ echo "[6/7] glibc stubs library..."
 gcc -shared -fPIC -o /tmp/libglibc_stubs.so "${MOBILE_DIR}/os/glibc_stubs.c"
 sudo cp /tmp/libglibc_stubs.so "${MNT}/usr/lib/libglibc_stubs.so"
 
-echo "[7/7] gcompat (glibc compat)..."
+echo "[7/8] gcompat (glibc compat)..."
 if [ ! -f "${MNT}/lib/libc.so.6" ]; then
     sudo cp "${CHROOT}/usr/lib/libgcompat.so.0" "${MNT}/usr/lib/"
     sudo cp "${CHROOT}/usr/lib/libgcompat.so.0" "${MNT}/lib/"
@@ -67,6 +67,11 @@ if [ ! -f "${MNT}/lib/libc.so.6" ]; then
     sudo mkdir -p "${MNT}/lib64"
     sudo ln -sf ../lib/ld-linux-x86-64.so.2 "${MNT}/lib64/ld-linux-x86-64.so.2"
 fi
+
+echo "[8/8] Mainnet seed + SSH forwarding fix..."
+sudo cp "${AD4M_DIR}/rust-executor/src/mainnet_seed.json" "${MNT}/home/user/.ad4m/mainnet_seed.seed"
+# Enable SSH TCP forwarding for debugging tunnels
+sudo sed -i "s/^AllowTcpForwarding no/AllowTcpForwarding yes/" "${MNT}/etc/ssh/sshd_config" 2>/dev/null || true
 
 sudo chown -R 10000:10000 "${MNT}/home/user/.ad4m" 2>/dev/null || true
 
